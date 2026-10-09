@@ -1,0 +1,8 @@
+3Hz bump amplitude remaining at 30/60/144 FPS: 15.2 %, 15.0 %, 15.0 %
+Elevation regression: climbs/drops at 30/60/144 FPS bounded to 0.6 m; terrain and road clearance checked at short and maximum boom lengths.
+Recenter regression: look direction preserved across origin shifts, hitches, pause, settings, and focus changes; eased return capped at 120 deg/s.
+Driving HUD: 121 checks for live readings, native style, gauge geometry, expanded inventory, resolution/scale, and visibility.
+Camera runtime regressions: live pitch bounds, interrupted renders, collision budgets and retained buffers passed.
+Binding/interface regressions: 260 checks; bounded discovery, late/replaced cameras, live guards and typed bridge failure handling.
+Driving HUD regressions: 27 checks for cache cadence, live UI changes, gearing edits, reconstruction and artwork reuse.
+PASS: 2449 checks; 14 real prefab fixtures; render lifecycle simulated; real Unity gameplay still needs testing.

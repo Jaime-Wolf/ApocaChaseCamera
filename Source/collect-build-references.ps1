@@ -1,12 +1,10 @@
 param(
-    [string]$GameDir = 'D:\Steam\steamapps\common\Apocalypter',
-    [string]$OutputDir = (Join-Path $PSScriptRoot 'build')
+    [Parameter(Mandatory = $true)][string]$GameDir,
+    [string]$OutputFile = (Join-Path $PSScriptRoot '..\ApocaChaseCamera-build-references.zip')
 )
 $ErrorActionPreference = 'Stop'
 $taskManaged = Join-Path $GameDir 'Apocalypter_Data\Managed'
 $taskCore = Join-Path $GameDir 'BepInEx\core'
-$taskCompiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
-if (!(Test-Path -LiteralPath $taskCompiler)) { $taskCompiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework\v4.0.30319\csc.exe' }
 $taskReferences = @('mscorlib','System','System.Core','netstandard','Assembly-CSharp','UnityEngine','UnityEngine.CoreModule',
     'UnityEngine.PhysicsModule','UnityEngine.TerrainModule','UnityEngine.TerrainPhysicsModule','UnityEngine.InputLegacyModule',
     'UnityEngine.UIModule','UnityEngine.TextRenderingModule','UnityEngine.UI','PlayMaker','NWH.VehiclePhysics2','NWH.Common') |
@@ -17,11 +15,14 @@ $taskReferences += @((Join-Path $taskCore 'BepInEx.dll'), (Join-Path $taskCore '
 foreach ($taskReference in $taskReferences) {
     if (!(Test-Path -LiteralPath $taskReference)) { throw "Missing build reference: $taskReference" }
 }
-New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
-$taskArgs = @('/nologo','/noconfig','/nostdlib+','/target:library','/langversion:5','/optimize+','/warn:4',
-    ('/out:' + (Join-Path $OutputDir 'ApocaChaseCamera.dll')))
-$taskArgs += $taskReferences | ForEach-Object { '/reference:' + $_ }
-$taskArgs += Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.cs' -File | ForEach-Object { $_.FullName }
-& $taskCompiler @taskArgs
-if ($LASTEXITCODE -ne 0) { throw "Mod compilation failed with exit code $LASTEXITCODE" }
-Write-Output ('Built ' + (Join-Path $OutputDir 'ApocaChaseCamera.dll'))
+if (Test-Path -LiteralPath $OutputFile) { throw "Output already exists: $OutputFile" }
+Add-Type -AssemblyName System.IO.Compression
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$taskZip = [IO.Compression.ZipFile]::Open([IO.Path]::GetFullPath($OutputFile), [IO.Compression.ZipArchiveMode]::Create)
+try {
+    foreach ($taskReference in $taskReferences) {
+        $taskRelative = $taskReference.Substring($GameDir.TrimEnd([char[]]@('\', '/')).Length).TrimStart([char[]]@('\', '/')).Replace('\', '/')
+        [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($taskZip, $taskReference, $taskRelative) | Out-Null
+    }
+} finally { $taskZip.Dispose() }
+Write-Output ('Collected only the build reference DLLs in ' + [IO.Path]::GetFullPath($OutputFile))

@@ -39,16 +39,21 @@ namespace ApocaChaseCamera
             if (!Plugin.Enabled.Value || !Apocasetter.GameMenu.InGame ||
                 Apocasetter.GameMenu.Paused || Apocasetter.InputBlocker.Active ||
                 !Application.isFocused || Time.timeScale <= 0f ||
-                !CameraBinding.Resolve() || CameraBinding.SpecialView())
+                !CameraBinding.Resolve() ||
+                (CameraBinding.SpecialView() && !ApocaplayerBridge.ThirdPersonView))
             { Release(); return; }
             float yaw;
             if (ChaseView.CompassHeading(out yaw)) { Apply(yaw); return; }
             Camera native = CameraBinding.NativeCamera;
             if (native == null || !native.isActiveAndEnabled)
             {
-                // Another camera mod owns this eye's custom render matrices.
-                // Only our successful view above can supply its third-person yaw.
-                if (ApocaplayerBridge.ThirdPersonView) { Release(); return; }
+                // An Apocaplayer-owned armed/fallback view uses its current-frame
+                // computed pose; the native transform is not its rendered heading.
+                if (ApocaplayerBridge.ThirdPersonView)
+                {
+                    if (ApocaplayerBridge.CompassHeading(out yaw)) Apply(yaw); else Release();
+                    return;
+                }
                 native = CameraBinding.FirstCamera;
             }
             if (native == null || !native.isActiveAndEnabled) { Release(); return; }

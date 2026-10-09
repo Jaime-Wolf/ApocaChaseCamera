@@ -12,7 +12,7 @@ namespace ApocaChaseCamera
     public sealed class Plugin : BaseUnityPlugin
     {
         public const string GUID = "local.apocalypter.chasecamera";
-        public const string VERSION = "0.1.9";
+        public const string VERSION = "0.2.4";
         internal static ManualLogSource Log;
         internal static ConfigEntry<bool> Enabled, Recenter, HudEnabled;
         internal static ConfigEntry<float> Height, Distance, Side, Pitch, BumpTime,
@@ -70,6 +70,7 @@ namespace ApocaChaseCamera
         // and static callbacks survive that; shut down only on actual app exit.
         private void OnApplicationQuit()
         {
+            ChaseView.SaveZoom(true);
             SceneManager.sceneLoaded -= SceneLoaded;
             Camera.onPreCull -= ChaseView.PreCull;
             Camera.onPostRender -= ChaseView.PostRender;

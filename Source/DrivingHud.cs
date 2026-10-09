@@ -18,6 +18,7 @@ namespace ApocaChaseCamera
         private static VehicleController vehicle;
         private static float nextSearch, nextText, nextError, lastScale = -1f;
         private static float nextBindingCheck, nextGraphicsRefresh, nextBoundsRefresh;
+        private static float nextVehicleSearch;
         private static int inventoryChildren = -1;
         private static bool hasBounds;
         private static float boundsLeft, boundsRight, boundsBottom, boundsTop;
@@ -29,7 +30,7 @@ namespace ApocaChaseCamera
             ReleaseHud();
             vehicle = null; owner = null;
             DrivingReadings.Reset();
-            nextSearch = nextText = 0f;
+            nextSearch = nextText = nextVehicleSearch = 0f;
         }
 
         private static void ReleaseHud()
@@ -54,9 +55,15 @@ namespace ApocaChaseCamera
                     !Apocasetter.GameMenu.InGame || Apocasetter.GameMenu.Paused || Apocasetter.InputBlocker.Active ||
                     Time.timeScale <= 0f || !CameraBinding.Resolve() || CameraBinding.SpecialView() ||
                     !CameraBinding.ThirdPersonVisible()) { Hide(); return; }
-                if (owner != CameraBinding.Car || vehicle == null)
+                if (owner != CameraBinding.Car)
                 {
-                    owner = CameraBinding.Car;
+                    owner = CameraBinding.Car; vehicle = null;
+                    nextVehicleSearch = nextText = 0f;
+                    DrivingReadings.Reset();
+                }
+                if (vehicle == null && Time.unscaledTime >= nextVehicleSearch)
+                {
+                    nextVehicleSearch = Time.unscaledTime + 0.5f;
                     vehicle = owner.GetComponent<VehicleController>();
                     if (vehicle == null) vehicle = owner.GetComponentInChildren<VehicleController>(true);
                     nextText = 0f;

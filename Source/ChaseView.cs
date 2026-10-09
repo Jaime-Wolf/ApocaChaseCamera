@@ -14,12 +14,50 @@ namespace ApocaChaseCamera
         private static float suspendTime, recenterBlend;
         private static int poseFrame = -1;
         private static int renderedFrame = -1;
+        private static int inputFrame = -1, consumedInputFrame = -1;
+        private static bool poseCutaway, handoff, recentering;
+        private static Vector3 handoffPosition;
+        private static Quaternion handoffRotation;
+        private static float zoomTarget, zoomBase, zoomSaveAt;
+
+        internal static bool PoseCutaway { get { return poseCutaway; } }
+        private static float DesiredDistance
+        {
+            get
+            {
+                // Live MODS slider edits take precedence over pending wheel saves.
+                if (zoomTarget > 0f && Math.Abs(Plugin.Distance.Value - zoomBase) > 0.0001f)
+                    zoomTarget = zoomSaveAt = 0f;
+                return zoomTarget > 0f ? zoomTarget : Plugin.Distance.Value;
+            }
+        }
+
+        internal static void ScrollZoom(float wheel)
+        {
+            if (wheel == 0f || Single.IsNaN(wheel) || Single.IsInfinity(wheel)) return;
+            float current = DesiredDistance;
+            zoomBase = Plugin.Distance.Value;
+            zoomTarget = CameraMath.Clamp(current * (float)Math.Pow(0.88f, wheel), 2f, 15f);
+            zoomSaveAt = Time.unscaledTime + 1f;
+        }
+
+        internal static void SaveZoom(bool force)
+        {
+            float value = DesiredDistance;
+            if (zoomSaveAt <= 0f || (!force && Time.unscaledTime < zoomSaveAt)) return;
+            zoomTarget = zoomSaveAt = 0f;
+            Plugin.Distance.Value = (float)Math.Round(value, 2);
+        }
+
+        internal static void AcceptHandoff(Vector3 position, Quaternion rotation)
+        { handoffPosition = position; handoffRotation = rotation; handoff = true; poseFrame = -1; }
 
         internal static void Reset()
         {
             Restore(); CompassView.Reset(); CameraQueries.Clear(); ready = false; allowed = false; clearPose = false; selected = null;
             orbit = 0f; pitchOrbit = 0f; mouseX = 0f; mouseY = 0f; poseFrame = -1;
             suspended = false; recenterBlend = 0f;
+            handoff = false; poseCutaway = false; recentering = false; DrivingAim.Reset();
         }
 
         private static void Suspend()
@@ -37,25 +75,40 @@ namespace ApocaChaseCamera
                 // callbacks may repeat, but an old view must not leak forward.
                 if (renderedFrame >= 0 && renderedFrame != Time.frameCount) Restore();
                 ApocaplayerBridge.Discover();
-                if (!Plugin.Enabled.Value || !Apocasetter.GameMenu.InGame) { Reset(); return; }
-                if (!Application.isFocused || Apocasetter.GameMenu.Paused ||
-                    Apocasetter.InputBlocker.Active || Time.timeScale <= 0f) { Suspend(); return; }
-                if (!CameraBinding.Resolve()) { Reset(); return; }
-                if (CameraBinding.SpecialView()) { Suspend(); return; }
-                Camera camera = CameraBinding.SelectedCamera();
-                if (camera == null) { Suspend(); return; }
-                if (selected != camera) { Reset(); selected = camera; }
-                allowed = true;
-                if (suspended)
-                {
-                    lastMove += Mathf.Max(0f, Time.unscaledTime - suspendTime);
-                    lastTime = Time.unscaledTime; suspended = false; recenterBlend = 0f;
-                    return;
-                }
-                // Unity mouse axes are frame deltas: do not multiply by deltaTime.
-                mouseX = Input.GetAxisRaw("Mouse X"); mouseY = Input.GetAxisRaw("Mouse Y");
+                SaveZoom(false);
+                RefreshSelection();
             }
             catch (Exception ex) { Fail(ex); }
+        }
+
+        private static void RefreshSelection()
+        {
+            if (!Plugin.Enabled.Value || !Apocasetter.GameMenu.InGame) { Reset(); return; }
+            if (!Application.isFocused || Apocasetter.GameMenu.Paused ||
+                Apocasetter.InputBlocker.Active || Time.timeScale <= 0f) { Suspend(); return; }
+            if (!CameraBinding.Resolve()) { Reset(); return; }
+            if (CameraBinding.SpecialView()) { Suspend(); return; }
+            Camera camera = CameraBinding.SelectedCamera();
+            if (camera == null) { Suspend(); return; }
+            if (selected != camera)
+            {
+                bool pending = handoff; Vector3 fromPosition = handoffPosition; Quaternion fromRotation = handoffRotation;
+                Reset(); selected = camera;
+                if (pending) AcceptHandoff(fromPosition, fromRotation);
+            }
+            allowed = true;
+            if (suspended)
+            {
+                lastMove += Mathf.Max(0f, Time.unscaledTime - suspendTime);
+                lastTime = Time.unscaledTime; suspended = false; recenterBlend = 0f;
+                return;
+            }
+            // Unity mouse axes are frame deltas: do not multiply by deltaTime.
+            if (inputFrame != Time.frameCount)
+            {
+                inputFrame = Time.frameCount;
+                mouseX = Input.GetAxisRaw("Mouse X"); mouseY = Input.GetAxisRaw("Mouse Y");
+            }
         }
 
         private static void BuildPose()
@@ -72,7 +125,7 @@ namespace ApocaChaseCamera
             if (!ready)
             {
                 vertical = raw.y; heading = targetHeading; orbit = 0f; pitchOrbit = 0f;
-                distance = Plugin.Distance.Value; lastMove = now; dt = 0f; ready = true;
+                distance = DesiredDistance; lastMove = now; dt = 0f; ready = true;
             }
             else if (CameraMath.NeedsReset(Vector3.Distance(raw, previousRaw), dt))
             {
@@ -86,7 +139,16 @@ namespace ApocaChaseCamera
             vertical = CameraMath.FollowHeight(vertical, raw.y, Plugin.BumpTime.Value,
                 Plugin.MaxHeightLag.Value, dt);
             heading = CameraMath.FollowAngle(heading, targetHeading, Plugin.TurnTime.Value, dt);
-            if (Math.Abs(mouseX) + Math.Abs(mouseY) > 0.002f)
+            if (handoff)
+            {
+                float yaw, pitch; ApocaplayerBridge.Angles(handoffRotation, out yaw, out pitch);
+                orbit = CameraMath.Wrap(yaw - heading); pitchOrbit = pitch - Plugin.Pitch.Value;
+                Vector3 newPivot = new Vector3(raw.x, vertical + Plugin.Height.Value, raw.z);
+                distance = Mathf.Min(DesiredDistance, Vector3.Distance(newPivot, handoffPosition));
+                lastMove = now; recenterBlend = 0f; handoff = false;
+            }
+            recentering = false;
+            if (consumedInputFrame != Time.frameCount && Math.Abs(mouseX) + Math.Abs(mouseY) > 0.002f)
             {
                 orbit = CameraMath.Wrap(orbit + mouseX * Plugin.Sensitivity.Value);
                 pitchOrbit -= mouseY * Plugin.Sensitivity.Value;
@@ -95,10 +157,12 @@ namespace ApocaChaseCamera
             }
             else if (Plugin.Recenter.Value && now - lastMove >= Plugin.RecenterDelay.Value)
             {
+                recentering = true;
                 recenterBlend = CameraMath.Follow(recenterBlend, 1f, 0.2f, dt);
                 orbit = CameraMath.RecenterAngle(orbit, Plugin.RecenterTime.Value, recenterBlend, dt);
                 pitchOrbit = CameraMath.RecenterAngle(pitchOrbit, Plugin.RecenterTime.Value, recenterBlend, dt);
             }
+            consumedInputFrame = Time.frameCount;
             // The base pitch is adjustable while orbit is preserved through a
             // settings-menu pause. Keep the combined angle within its limits.
             pitchOrbit = CameraMath.Clamp(pitchOrbit, -35f - Plugin.Pitch.Value, 65f - Plugin.Pitch.Value);
@@ -107,7 +171,7 @@ namespace ApocaChaseCamera
             // ahead of the camera. Only vertical bumps and heading are damped.
             Vector3 pivot = new Vector3(raw.x, vertical + Plugin.Height.Value, raw.z);
             rotation = Quaternion.Euler(Plugin.Pitch.Value + pitchOrbit, heading + orbit, 0f);
-            Vector3 offset = rotation * new Vector3(Plugin.Side.Value, 0f, -Plugin.Distance.Value);
+            Vector3 offset = rotation * new Vector3(Plugin.Side.Value, 0f, -DesiredDistance);
             float desired = offset.magnitude;
             Vector3 direction = offset / desired;
             float radius = Mathf.Max(0.22f, selected.nearClipPlane *
@@ -115,11 +179,13 @@ namespace ApocaChaseCamera
             float clear = desired;
             Terrain[] terrains = Terrain.activeTerrains;
             RaycastHit? support = GroundSupport(raw);
+            poseCutaway = ApocaplayerBridge.CutawayAllowed;
             int sweepCount;RaycastHit[] sweep=CameraQueries.Sweep(pivot,radius,direction,desired,out sweepCount);
             for(int i=0;i<sweepCount;i++)
             {
                 RaycastHit hit=sweep[i];
-                if (!CameraBinding.OwnCollider(hit.collider)) clear = Mathf.Min(clear, Mathf.Max(0f, hit.distance - 0.08f));
+                if (!CameraBinding.OwnCollider(hit.collider) && !(poseCutaway && hit.normal.y <= 0.25f && ApocaplayerBridge.CanFade(hit.collider)))
+                    clear = Mathf.Min(clear, Mathf.Max(0f, hit.distance - 0.08f));
             }
             distance = CameraMath.SafeDistance(distance, clear, Plugin.RecoveryTime.Value, dt);
             Vector3 candidate = pivot + direction * distance;
@@ -187,8 +253,32 @@ namespace ApocaChaseCamera
                     point.y < hit.point.y + clearance) return true;
             }
             Collider[] colliders=CameraQueries.Overlap(point,radius,out count);
-            for(int i=0;i<count;i++) if (!CameraBinding.OwnCollider(colliders[i])) return true;
+            for(int i=0;i<count;i++) if (!CameraBinding.OwnCollider(colliders[i]) &&
+                !(poseCutaway && ApocaplayerBridge.CanFade(colliders[i]))) return true;
             return false;
+        }
+
+        internal static bool TryPose(Camera camera, out Vector3 viewPosition, out Quaternion viewRotation)
+        {
+            viewPosition = new Vector3(); viewRotation = new Quaternion();
+            // Auxiliary cutaway cameras and inactive old views must not release
+            // the compass or change ownership during another camera's render.
+            if (camera == null || !camera.isActiveAndEnabled ||
+                (camera != CameraBinding.NativeCamera && camera != CameraBinding.FirstCamera)) return false;
+            try
+            {
+                RefreshSelection();
+                if (!allowed || camera == null || camera != selected || !camera.isActiveAndEnabled || CameraBinding.Car == null) return false;
+                BuildPose();
+                // Never use clearance assumptions from an effect disabled later in this frame.
+                if (!clearPose || (poseCutaway && !ApocaplayerBridge.CutawayAllowed)) return false;
+                // Native controllers can write the eye after an earlier pose
+                // consumer this frame. Correct aim again before the cursor's
+                // raycast; caching the boom must not cache this side effect.
+                if (recentering && Plugin.Recenter.Value) DrivingAim.Recenter(camera, rotation);
+                viewPosition = position; viewRotation = rotation; return true;
+            }
+            catch (Exception ex) { Fail(ex); return false; }
         }
 
         internal static void PreCull(Camera camera)
@@ -207,8 +297,8 @@ namespace ApocaChaseCamera
                 selected != CameraBinding.SelectedCamera() || CameraBinding.Car == null) return false;
             try
             {
-                BuildPose();
-                if (!clearPose) return false;
+                Vector3 p; Quaternion r;
+                if (!TryPose(selected, out p, out r)) return false;
                 yaw = heading + orbit;
                 return true;
             }
@@ -217,14 +307,13 @@ namespace ApocaChaseCamera
 
         internal static bool Apply(Camera camera)
         {
-            if (!allowed || camera != selected || CameraBinding.Car == null) return false;
             try
             {
                 // Apply can also be reached by another camera mod's render
                 // hook before this runner receives its next Update.
                 if (renderedFrame >= 0 && renderedFrame != Time.frameCount) Restore();
-                BuildPose();
-                if (!clearPose) return false;
+                Vector3 p; Quaternion r;
+                if (!TryPose(camera, out p, out r)) return false;
                 if (rendered == camera) return true;
                 Restore();
                 rendered = camera;

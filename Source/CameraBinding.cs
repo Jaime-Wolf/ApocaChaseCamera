@@ -6,7 +6,7 @@ namespace ApocaChaseCamera
     internal static class CameraBinding
     {
         internal static GameObject Player;
-        internal static Transform Car;
+        internal static Transform Car, CameraHolder;
         internal static Camera NativeCamera, FirstCamera;
         internal static Vector3 LocalAnchor;
         private static PlayMakerFSM inCar, health, ads, binoculars;
@@ -17,7 +17,7 @@ namespace ApocaChaseCamera
 
         internal static void Reset()
         {
-            Player = null; Car = null; NativeCamera = null; FirstCamera = null;
+            Player = null; Car = CameraHolder = null; NativeCamera = null; FirstCamera = null;
             inCar = null; health = null; ads = null; binoculars = null;
             healthVariables = null; healthAmount = null; seatParent = thirdAnchor = null;
             nextSearch = nextVehicleSearch = nextCameraSearch = nextSpecialSearch = 0f;
@@ -33,7 +33,7 @@ namespace ApocaChaseCamera
 
         internal static bool Resolve()
         {
-            if ((Player == null || inCar == null || health == null || FirstCamera == null) &&
+            if ((Player == null || inCar == null || health == null || FirstCamera == null || CameraHolder == null) &&
                 Time.unscaledTime >= nextSearch)
             {
                 nextSearch = Time.unscaledTime + 0.5f;
@@ -42,15 +42,32 @@ namespace ApocaChaseCamera
                     Player = GameObject.Find("Player");
                     inCar = health = null; healthVariables = null; healthAmount = null;
                     Car = null; NativeCamera = null; seatParent = thirdAnchor = null;
-                    FirstCamera = null; ads = binoculars = null;
+                    FirstCamera = null; CameraHolder = null; ads = binoculars = null;
                     nextVehicleSearch = nextCameraSearch = nextSpecialSearch = 0f;
                 }
                 if (inCar == null) inCar = FindFsm(Player, "InCar");
                 if (health == null) health = FindFsm(Player, "Health");
-                if (FirstCamera == null)
+                if (CameraHolder == null)
                 {
                     GameObject holder = GameObject.Find("PlayerCameraHolder");
-                    Transform eye = holder == null ? null : holder.transform.Find("PlayerCamera");
+                    // This is a separate scene root in the stock game, not
+                    // necessarily a child of the player capsule.
+                    if (holder != null) CameraHolder = holder.transform;
+                }
+                if (FirstCamera == null)
+                {
+                    Transform eye = CameraHolder == null ? null : CameraHolder.Find("PlayerCamera");
+                    // InCar reparents the eye directly to the seat. Discovery
+                    // can begin after that move (load, refresh or replacement).
+                    Transform seat = Player == null ? null : Player.transform.parent;
+                    bool seated = inCar != null && inCar.ActiveStateName == "InCar";
+                    if (eye == null && seated && seat != null) eye = seat.Find("PlayerCamera");
+                    if (eye == null && Player != null)
+                    {
+                        GameObject candidate = GameObject.Find("PlayerCamera");
+                        if (candidate != null && (candidate.transform.IsChildOf(Player.transform) ||
+                            (seated && seat != null && candidate.transform.IsChildOf(seat)))) eye = candidate.transform;
+                    }
                     FirstCamera = eye == null ? null : eye.GetComponent<Camera>();
                     ads = binoculars = null; nextSpecialSearch = 0f;
                 }
@@ -147,7 +164,7 @@ namespace ApocaChaseCamera
         internal static Camera SelectedCamera()
         {
             if (NativeCamera != null && NativeCamera.isActiveAndEnabled) return NativeCamera;
-            if (FirstCamera != null && FirstCamera.isActiveAndEnabled && ApocaplayerBridge.CruisingView)
+            if (FirstCamera != null && FirstCamera.isActiveAndEnabled && ApocaplayerBridge.Driving(FirstCamera))
                 return FirstCamera;
             return null;
         }

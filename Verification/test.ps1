@@ -25,7 +25,7 @@ $taskExe = Join-Path ([IO.Path]::GetTempPath()) ('ApocaChaseCamera-checks-' + [G
 try {
 $taskCheckArgs = @('/nologo','/target:exe','/langversion:5','/warn:4',('/out:' + $taskExe))
 $taskCheckArgs += Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.cs' -File | ForEach-Object { $_.FullName }
-$taskCheckArgs += @('CameraQueries.cs','CameraMath.cs','CameraBinding.cs','ChaseView.cs','ApocaplayerBridge.cs','HudMath.cs','DrivingReadings.cs','DrivingHud.cs','GaugeFace.cs') | ForEach-Object { Join-Path $taskSource $_ }
+$taskCheckArgs += @('CameraQueries.cs','CameraMath.cs','CameraBinding.cs','ChaseView.cs','CompassView.cs','ApocaplayerBridge.cs','HudMath.cs','DrivingReadings.cs','DrivingHud.cs','GaugeFace.cs') | ForEach-Object { Join-Path $taskSource $_ }
 & $taskCompiler @taskCheckArgs
 if ($LASTEXITCODE -ne 0) { throw 'Test compilation failed' }
 & $taskExe $taskFixtureCsv

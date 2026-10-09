@@ -103,6 +103,7 @@ namespace ApocaChaseCamera
             checks += RuntimeRegressionChecks.Run();
             checks += BindingRegressionChecks.Run();
             checks += HudRegressionChecks.Run();
+            checks += CompassRegressionChecks.Run();
             Console.WriteLine("PASS: "+checks+" checks; 14 real prefab fixtures; render lifecycle simulated; real Unity gameplay still needs testing.");
         }
         private static void NumericalChecks()

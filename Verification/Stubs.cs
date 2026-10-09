@@ -10,9 +10,39 @@ namespace Apocasetter
 }
 namespace HutongGames.PlayMaker
 {
-    public class FsmFloat { public float Value=100f; }
-    public class Fsm { public bool Initialized=true; }
+    public class FsmFloat { public float Value=100f; public string Name; public bool IsNone; }
+    public class FsmOwnerDefault { public UnityEngine.GameObject Target; }
+    public class FsmStateAction { public bool Enabled=true; public virtual void OnUpdate(){} public virtual void OnLateUpdate(){} }
+    public class FsmState { public FsmStateAction[] Actions; }
+    public class Fsm
+    {
+        public bool Initialized=true; public FsmState CompassState;
+        public FsmState GetState(string name){return name=="compass fps" ? CompassState : null;}
+        public UnityEngine.GameObject GetOwnerDefaultTarget(FsmOwnerDefault owner){return owner.Target;}
+    }
     public class FsmVariables { public static int Searches; public FsmFloat Health=new FsmFloat(); public FsmFloat FindFsmFloat(string name) { Searches++; return Health; } }
+}
+// Small handwritten action doubles exercise the adapter contract. Game action
+// implementations are loaded only from the installed game in production.
+namespace HutongGames.PlayMaker.Actions
+{
+    public class GetRotation : HutongGames.PlayMaker.FsmStateAction
+    { public HutongGames.PlayMaker.FsmFloat yAngle; public UnityEngine.Space space; }
+    public class FloatMultiply : HutongGames.PlayMaker.FsmStateAction
+    {
+        public HutongGames.PlayMaker.FsmFloat floatVariable;
+        public float Factor=-1f; public static int Calls;
+        public override void OnUpdate(){Calls++;floatVariable.Value*=Factor;}
+    }
+    public class SetRotation : HutongGames.PlayMaker.FsmStateAction
+    {
+        public HutongGames.PlayMaker.FsmFloat zAngle; public HutongGames.PlayMaker.FsmOwnerDefault gameObject;
+        public UnityEngine.Space space; public bool lateUpdate; public static int Calls;
+        public override void OnUpdate(){if(!lateUpdate)Draw();}
+        public override void OnLateUpdate(){if(lateUpdate)Draw();}
+        private void Draw(){Calls++;UnityEngine.Vector3 e=gameObject.Target.transform.eulerAngles;
+            gameObject.Target.transform.rotation=UnityEngine.Quaternion.Euler(e.x,e.y,zAngle.Value);}
+    }
 }
 public class PlayMakerFSM : UnityEngine.Component
 {
@@ -22,6 +52,7 @@ public class PlayMakerFSM : UnityEngine.Component
 }
 namespace UnityEngine
 {
+    public enum Space {World,Self}
     public class Component : Object
     {
         public GameObject gameObject; public Transform transform { get { return gameObject.transform; } }
@@ -33,7 +64,7 @@ namespace UnityEngine
     public class GameObject : Object
     {
         public static Dictionary<string,GameObject> Registry=new Dictionary<string,GameObject>();
-        public static int HierarchyArrayScans,HierarchyListScans;
+        public static int HierarchyArrayScans,HierarchyListScans,FindCalls;
         public string name; public bool activeSelf=true; public Transform transform;
         private List<Component> components=new List<Component>();
         public bool activeInHierarchy { get { return !destroyed && activeSelf && (transform.parent==null || transform.parent.gameObject.activeInHierarchy); } }
@@ -43,7 +74,7 @@ namespace UnityEngine
             foreach(Type type in types)if(type==typeof(RectTransform))transform=new RectTransform(this);
             components.Add(transform);
         }
-        public static GameObject Find(string name) { GameObject go; return Registry.TryGetValue(name,out go) && go.activeInHierarchy ? go : null; }
+        public static GameObject Find(string name) { FindCalls++; GameObject go; return Registry.TryGetValue(name,out go) && go.activeInHierarchy ? go : null; }
         public T Add<T>(T value) where T:Component { value.gameObject=this; components.Add(value); return value; }
         public T AddComponent<T>() where T:Component,new(){return Add(new T());}
         public void SetActive(bool active){activeSelf=active;}
@@ -67,6 +98,7 @@ namespace UnityEngine
         public int childCount {get{return children.Count;}}
         public Transform GetChild(int index){return children[index];}
         public Vector3 localPosition; public Quaternion rotation=Quaternion.Euler(0,0,0);
+        public Vector3 eulerAngles {get{return rotation.euler;}}
         public string name { get { return gameObject.name; } }
         public Transform(GameObject go) { gameObject=go; }
         public virtual Vector3 position { get { return parent==null ? localPosition : parent.TransformPoint(localPosition); } set { localPosition=parent==null ? value : parent.InverseTransformPoint(value); } }

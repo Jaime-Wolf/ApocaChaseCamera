@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <BaseIntermediateOutputPath>obj/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
+    <GameCore Condition="'$(GameCore)' == ''">D:/Steam/steamapps/common/Apocalypter/BepInEx/core</GameCore>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="MonoMod.Utils"><HintPath>$(GameCore)/MonoMod.Utils.dll</HintPath></Reference>
+    <Reference Include="Mono.Cecil"><HintPath>$(GameCore)/Mono.Cecil.dll</HintPath></Reference>
+  </ItemGroup>
+</Project>

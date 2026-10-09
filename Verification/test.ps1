@@ -1,4 +1,7 @@
-param([string]$FixtureJson = (Join-Path $PSScriptRoot '..\..\camera-research\camera-fixtures.json'))
+param(
+    [string]$FixtureJson = (Join-Path $PSScriptRoot '..\..\camera-research\camera-fixtures.json'),
+    [string]$GameDir = 'D:\Steam\steamapps\common\Apocalypter'
+)
 $ErrorActionPreference = 'Stop'
 if (Test-Path -LiteralPath $FixtureJson) {
 $taskRows = Get-Content -LiteralPath $FixtureJson -Raw | ConvertFrom-Json
@@ -21,15 +24,25 @@ Set-Content -LiteralPath $taskFixtureCsv -Value $taskLines -Encoding Ascii
 $taskCompiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 $taskSource = Split-Path $PSScriptRoot -Parent
 if (Test-Path -LiteralPath (Join-Path $taskSource 'Source\CameraMath.cs')) { $taskSource = Join-Path $taskSource 'Source' }
-$taskExe = Join-Path ([IO.Path]::GetTempPath()) ('ApocaChaseCamera-checks-' + [Guid]::NewGuid().ToString('N') + '.exe')
+$taskTempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
+$taskWork = Join-Path $taskTempRoot ('ApocaChaseCamera-checks-' + [Guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $taskWork | Out-Null
+$taskExe = Join-Path $taskWork 'Checks.exe'
 try {
+Get-ChildItem -LiteralPath (Join-Path $GameDir 'BepInEx\core') -Filter '*.dll' -File | Copy-Item -Destination $taskWork
 $taskCheckArgs = @('/nologo','/target:exe','/langversion:5','/warn:4',('/out:' + $taskExe))
+$taskCheckArgs += @('MonoMod.Utils.dll','Mono.Cecil.dll') | ForEach-Object { '/reference:' + (Join-Path $taskWork $_) }
 $taskCheckArgs += Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.cs' -File | ForEach-Object { $_.FullName }
-$taskCheckArgs += @('CameraQueries.cs','CameraMath.cs','CameraBinding.cs','ChaseView.cs','CompassView.cs','ApocaplayerBridge.cs','HudMath.cs','DrivingReadings.cs','DrivingHud.cs','GaugeFace.cs') | ForEach-Object { Join-Path $taskSource $_ }
+$taskCheckArgs += @('CameraQueries.cs','CameraMath.cs','CameraBinding.cs','ChaseView.cs','DrivingAim.cs','CompassView.cs','ApocaplayerBridge.cs','HudMath.cs','DrivingReadings.cs','DrivingHud.cs','GaugeFace.cs') | ForEach-Object { Join-Path $taskSource $_ }
 & $taskCompiler @taskCheckArgs
 if ($LASTEXITCODE -ne 0) { throw 'Test compilation failed' }
 & $taskExe $taskFixtureCsv
 if ($LASTEXITCODE -ne 0) { throw 'Camera verification failed' }
-} finally { if (Test-Path -LiteralPath $taskExe) { Remove-Item -LiteralPath $taskExe -Force } }
+} finally {
+    $taskResolved = [IO.Path]::GetFullPath($taskWork)
+    if ($taskResolved.StartsWith((Join-Path $taskTempRoot 'ApocaChaseCamera-checks-'), [StringComparison]::OrdinalIgnoreCase)) {
+        Remove-Item -LiteralPath $taskResolved -Recurse -Force
+    }
+}
 
 

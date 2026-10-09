@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <DefineConstants>REAL_APOCAPLAYER;REAL_HARMONY</DefineConstants>
+    <Optimize>false</Optimize>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Stubs.cs;RealPlayerStubs.cs;RealPlayerChecks.cs" />
+    <Compile Include="../Source/*.cs" Exclude="../Source/Plugin.cs" />
+    <Compile Include="$(ApocaplayerSource)/ThirdPerson.cs" Link="External/ThirdPerson.cs" />
+    <Reference Include="0Harmony" Condition="'$(HarmonyPath)' != ''"><HintPath>$(HarmonyPath)</HintPath></Reference>
+    <PackageReference Include="Lib.Harmony" Version="2.4.2" Condition="'$(HarmonyPath)' == ''" />
+  </ItemGroup>
+  <Target Name="CheckReferences" BeforeTargets="BeforeBuild">
+    <Error Condition="!Exists('$(ApocaplayerSource)/ThirdPerson.cs')" Text="Set ApocaplayerSource to an unchanged Apocaplayer source checkout." />
+    <Error Condition="'$(HarmonyPath)' != '' and !Exists('$(HarmonyPath)')" Text="HarmonyPath must refer to a .NET 8 compatible 0Harmony.dll (verified with Lib.Harmony 2.4.2)." />
+  </Target>
+</Project>

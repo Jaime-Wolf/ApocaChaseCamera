@@ -28,6 +28,7 @@ namespace ApocaChaseCamera
             inCar=player.Add(new PlayMakerFSM {FsmName="InCar",ActiveStateName="InCar"});
             health=player.Add(new PlayMakerFSM {FsmName="Health",ActiveStateName="Idle"});
             GameObject holder=Child("PlayerCameraHolder",player);GameObject eyeGo=Child("PlayerCamera",holder);eye=eyeGo.Add(new Camera());eye.enabled=false;
+            Apocaplayer.Game.Cam=eye;
             ads=eyeGo.Add(new PlayMakerFSM {FsmName="AimDownSIghts_Hold",ActiveStateName="idle"});
             bino=Child("Binocular Anim",Child("ItemAnim",eyeGo)).Add(new PlayMakerFSM {FsmName="Animation",ActiveStateName="off"});
             Physics.Hits=new RaycastHit[0];Physics.Overlaps=new Collider[0];Input.X=Input.Y=0;
@@ -98,7 +99,8 @@ namespace ApocaChaseCamera
             MethodInfo prefix=typeof(ApocaplayerBridge).GetMethod("BeforePreCull",BindingFlags.Static|BindingFlags.NonPublic);
             Check(!(bool)prefix.Invoke(null,new object[]{eye}),"successful bridge replaces original cruise render");Check(eye.worldToCameraMatrix.token!=101,"bridge render override");Check(Apocaplayer.ThirdPerson.HasView,"bridge publishes render view");
             Check(Apocaplayer.OcclusionCutaway.Calls==0,"disabled cutaway remains disabled");ChaseView.PostRender(eye);
-            Apocaplayer.Plugin.OcclusionPrototype.Value=true;Frame(.016f);prefix.Invoke(null,new object[]{eye});Check(Apocaplayer.OcclusionCutaway.Calls==1,"enabled cutaway follows new view");ChaseView.PostRender(eye);
+            Apocaplayer.Plugin.OcclusionPrototype.Value=true;Apocaplayer.Plugin.OcclusionInVehicle.Value=true;
+            Frame(.016f);prefix.Invoke(null,new object[]{eye});Check(Apocaplayer.OcclusionCutaway.Calls==1,"eligible vehicle cutaway follows new view");ChaseView.PostRender(eye);
             checks += HudChecks.Run();
             checks += RuntimeRegressionChecks.Run();
             checks += BindingRegressionChecks.Run();

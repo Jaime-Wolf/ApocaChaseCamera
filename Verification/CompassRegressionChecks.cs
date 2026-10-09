@@ -21,7 +21,7 @@ namespace ApocaChaseCamera
         private static void Check(bool value, string why)
         { checks++; if (!value) throw new Exception("Compass regression: " + why); }
         private static void Near(float a, float b, string why)
-        { Check(Math.Abs(CameraMath.Wrap(a - b)) < 0.001f, why); }
+        { Check(Math.Abs(CameraMath.Wrap(a - b)) < 0.001f, why + ": " + a + " vs " + b); }
         private static GameObject Child(string name, GameObject parent)
         { GameObject go = new GameObject(name); go.transform.Parent(parent.transform); return go; }
         private static float Field(string name)

@@ -108,7 +108,11 @@ namespace ApocaChaseCamera
                 for (int i = 0; i < 100; i++) { ApocaplayerBridge.Refresh(); ApocaplayerBridge.Discover(); Check(!ApocaplayerBridge.ThirdPersonView, "failed bridge stays disabled"); }
                 Check(Plugin.Log.Warnings == warnings + 1, "persistent bridge failure emits only one warning");
                 ApocaplayerBridge.Shutdown(); ApocaplayerBridge.Discover();
-                CameraBinding.FirstCamera = eye; Apocaplayer.Plugin.OcclusionPrototype.Value = true;
+                CameraBinding.FirstCamera = eye; Apocaplayer.Game.Cam = eye; Apocaplayer.Plugin.OcclusionPrototype.Value = true;
+                Apocaplayer.Plugin.OcclusionInVehicle.Value = true;
+                native.enabled = false; eye.enabled = true; Time.frameCount++; Time.unscaledTime += .016f;
+                ChaseView.Tick(); Vector3 preparedPosition; Quaternion preparedRotation;
+                Check(ChaseView.TryPose(eye, out preparedPosition, out preparedRotation), "eligible pose prepared before cutaway failure");
                 BridgeField("cutaway").SetValue(null, (Action<Camera, Vector3, Quaternion, Transform>)delegate { throw new InvalidOperationException("test cutaway failure"); });
                 warnings = Plugin.Log.Warnings;
                 Check(!ApocaplayerBridge.Publish(eye, new Vector3(1, 2, 3), Quaternion.Euler(0, 0, 0)), "cutaway failure reports unsuccessful publication for native fallback");
@@ -118,6 +122,7 @@ namespace ApocaChaseCamera
             finally
             {
                 Apocaplayer.Plugin.OcclusionPrototype.Value = false; Apocaplayer.ThirdPerson.On = false;
+                Apocaplayer.Plugin.OcclusionInVehicle.Value = false;
                 Apocaplayer.ThirdPerson.Peek = Apocaplayer.ThirdPerson.AimZoom = false; Apocaplayer.Game.Weapon = "";
                 ApocaplayerBridge.Shutdown(); ApocaplayerBridge.Discover(); Plugin.Log.ThrowWarnings = oldThrow;
                 ChaseView.Reset(); CameraBinding.Reset();

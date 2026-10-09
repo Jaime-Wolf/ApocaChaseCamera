@@ -155,6 +155,26 @@ namespace ApocaChaseCamera
             Child("NutsLable", canvas).AddComponent<Text>().font = new Font(); Tick(1.01f);
             Check(Field<RectTransform>("root") != null && Field<RectTransform>("root").gameObject.activeSelf,
                 "HUD recovers when the delayed native font arrives");
+            Setup(true);
+            UnityEngine.Object.Destroy(vehicle);
+            int queries=Transform.ChildComponentQueries;
+            Tick(.51f);int oneSearch=Transform.ChildComponentQueries-queries;
+            Check(oneSearch>0,"unsupported vehicle attempts initial controller discovery");
+            for(int i=0;i<100;i++)Tick(.001f);
+            Check(Transform.ChildComponentQueries==queries+oneSearch,"missing controller is negatively cached between retries");
+            Check(!Field<RectTransform>("root").gameObject.activeSelf,"unsupported vehicle hides the stale HUD");
+            Tick(.51f);
+            Check(Transform.ChildComponentQueries==queries+2*oneSearch,"unsupported vehicle retries at bounded cadence");
+            vehicle=CameraBinding.Car.gameObject.AddComponent<VehicleController>();vehicle.SpeedSigned=5;
+            Tick(.51f);
+            Check(Field<RectTransform>("root").gameObject.activeSelf,"late controller installation recovers without reentering the car");
+            UnityEngine.Object.Destroy(vehicle);Tick(.51f);
+            var newCar=new GameObject("Supported replacement car");var seat=Child("Replacement seat",newCar);
+            Child("Camera",Child("3rdCamera",Child("DriveTrigger",newCar))).AddComponent<Camera>();
+            vehicle=newCar.AddComponent<VehicleController>();vehicle.SpeedSigned=10;
+            CameraBinding.Player.transform.SetParent(seat.transform,true);Tick(.001f);
+            Check(Field<RectTransform>("root").gameObject.activeSelf&&Field<VehicleController>("vehicle")==vehicle,
+                "changing vehicles bypasses previous missing-controller retry immediately");
             DrivingHud.Reset();
             Console.WriteLine("Driving HUD regressions: " + count + " checks for cache cadence, live UI changes, gearing edits, reconstruction and artwork reuse.");
             return count;

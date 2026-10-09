@@ -1,4 +1,4 @@
-# ApocaChaseCamera 0.1.9 — steadier driving camera and instrument HUD
+# ApocaChaseCamera 0.2.4 — steadier driving camera and instrument HUD
 
 A steadier third-person driving camera for Apocalypter, inspired by the chase-camera feel of Mad Max (2015).
 
@@ -11,6 +11,52 @@ Version 0.1.2 adds a compact driving display above the inventory slots: speed in
 Version 0.1.3 gives the HUD a rusted, bolted metal backing and separate dark gauge housings with inventory-style rims. It reuses the game's loaded inventory artwork, with sliced borders to preserve the rivets when resized. The existing placement, readings, font, RPM warning, size and height controls stay the same. No extracted game textures are included in the download.
 
 Version 0.1.4 fixes weapon icons appearing in the HUD: item-slot textures change with the equipped weapon, so they are no longer used. Only the static rusty inventory plate is reused. Speed and RPM now have brass semicircular instrument faces, tick marks and live needles, with digital readings beneath them. The speed needle spans 0–240 km/h; the number still shows actual speed above that range. The RPM needle uses the current engine's rev limit, with a red zone and warning near redline. Gear has its own circular instrument rim. The default display is slightly taller to fit these faces and remains above the inventory with the same size and height controls.
+
+## Changes in 0.2.4
+
+Addresses three issues from the full-folder review while retaining the user-confirmed 0.2.3 crosshair auto-recenter correction:
+
+- Native mouse-look caches now support the game's separate PlayerCameraHolder as well as direct eye targets. Each uses its own parent's coordinate frame. The holder follows passive recenter so new mouse input or returning to its view cannot restore stale angles. The player's body and steering targets are excluded. The native vertical cache stores actual local pitch; only new MouseY input is inverted.
+- Camera discovery also checks the current vehicle seat when the native eye has already been reparented there, with a bounded, ownership-checked named fallback. Loading or refreshing while seated no longer requires finding the eye under its on-foot holder.
+- Vehicles without the expected controller retry HUD discovery every half second instead of searching their hierarchy every frame. Changing vehicles resets the delay immediately; a late controller can still recover.
+
+The cursor-time correction, camera ownership guards, compass, cutaway, zoom, collision and smoothing behavior are retained. Apocaplayer and Apocasetter are unchanged. Production compiles without warnings; 3,425 regression checks, 1,962 cross-mod checks and 47 installed-interface contracts pass. Tests covering each of the three issues fail against the preserved 0.2.3 source. Unity/physics/input services are simulated; 0.2.4 still needs the focused in-game checks in Verification/IN-GAME-CHECKLIST.md. These checks do not constitute a runtime performance benchmark.
+
+The working pre-fix 0.2.3 ZIP remains in Releases/PluginFolder and has a verified backup. Source and verification material stay in the separate developer archive.
+
+## Changes in 0.2.3
+
+Revises the Apocaplayer auto-recenter correction after the user reported that 0.2.2 still left the crosshair at the last look direction. Eye aim now follows the valid cruising pose immediately before the cursor projection requests it, including repeated pose requests in the same frame. This repairs a native aim write that happens after the chase pose was first cached. The eye correction also runs when the native Look controller is inactive, in an empty state, or unavailable; finding matching active input actions no longer gates the correction. Existing eye-only input caches in normal and mouse-steering states are kept ready for resumed input.
+
+The previous takeover, compass, zoom, cutaway, smoothing and HUD changes are retained. This applies only to passive auto-recenter in the unarmed ChaseCamera driving view. A short `Driving aim recenter active` log entry records the native controller state without logging every frame. Apocaplayer and Apocasetter files are unchanged.
+
+Production builds without warnings; all 3,419 existing regressions, 1,920 cross-mod simulations and 47 installed-interface contracts pass. New dormant-controller and late-native-write tests fail under their respective previous behavior. The exact runtime reason for the user's 0.2.2 failure was not observable in its log. The user subsequently confirmed that 0.2.3 fixes the crosshair auto-recenter issue in game; remaining review findings are addressed in 0.2.4.
+
+## Changes in 0.2.2
+
+Fixes the dynamic crosshair staying aimed in the last manually viewed direction while ChaseCamera automatically returns behind the vehicle with Apocaplayer enabled. Auto-recenter now brings the native eye's aim along with the visible camera and updates its mouse-look angle caches, so the cursor and interaction direction agree and new mouse input does not snap back to an old angle. The eye's position, player body and vehicle steering are left intact.
+
+This applies only during passive auto-recenter in the unarmed ChaseCamera driving view, including following turns after settling. It respects the configured delay and disabled recenter setting; first person, weapons, on-foot views and blocked input retain their own control. The previous compatibility, compass, zoom, cutaway, smoothing and HUD fixes are retained. The user confirmed that the 0.2.1 bridge takes over correctly in game; the user subsequently reported this 0.2.2 recenter correction unsuccessful in game. See 0.2.3.
+
+The production build compiles without warnings. All 3,419 existing regressions and 1,904 cross-mod simulation checks pass, plus 47 installed Apocaplayer/native aim interface contracts. The new aim regression fails against the prior 0.2.1 source as expected. These are automated checks, not a live Unity play-test.
+
+## Changes in 0.2.1
+
+Fixes the Apocaplayer compatibility bridge disabling itself on the game's Unity runtime. The 0.2.0 log reported “Operation is not supported on this platform”: its field accessors called Reflection.Emit.DynamicMethod, whose constructors are unsupported in the shipped game corlib. Accessors now use the Cecil backend supplied by BepInEx, explicitly avoiding that runtime API and preserving typed access without per-frame boxing. Bridge failures now include the full exception trace for diagnosis.
+
+Production builds without warnings. The 3,419 regression checks, 85 cross-mod simulations and 42 installed interface checks pass. An added production check rejects the unsupported call in the original 0.2.0 DLL. The user subsequently confirmed in-game takeover with 0.2.1; see 0.2.2 for the remaining recenter correction. Check the startup log for `Apocaplayer compatibility patch ready`.
+
+## Changes in 0.2.0
+
+Adds an optional Apocaplayer compatibility patch entirely inside ChaseCamera. Unarmed vehicle cruising uses ChaseCamera's steady view, with Apocaplayer's cursor projected from that same pose. Drawing a weapon, aiming and binoculars retain Apocaplayer's camera controls. Its on-foot view is unchanged.
+
+- Both Apocaplayer cutaway toggles, cave state, shader availability and current camera ownership are respected. Terrain, upward ground surfaces, named road meshes and blockers without fadeable renderers keep collision protection.
+- Mouse-wheel zoom while cruising adjusts ChaseCamera's distance and saves it after the wheel rests. Armed views retain Apocaplayer's own zoom.
+- Hidden orbit offsets are suppressed while ChaseCamera controls the view. Camera ownership changes transfer the visible orientation, clear stale pose caches and recover interrupted projection changes.
+- The compass follows the active rendered heading, including Apocaplayer's armed and non-scoped aiming views. Scoped and binocular views retain native special-view behavior.
+- Blocker renderer discovery is cached, with live visibility checks and bounded refreshes instead of repeated hierarchy-array searches every tenth of a second.
+
+This is a locally built test version. Production compilation, regression checks and cross-mod simulations pass; actual gameplay compatibility still needs testing. Apocaplayer and Apocasetter files are unchanged.
 
 ## Changes in 0.1.9
 
@@ -69,17 +115,19 @@ The mod binds to the vehicle you enter through the standard Player/InCar and Dri
 
 Modded cars using the same driving setup should work. Custom camera or seating systems need testing.
 
-An optional runtime bridge targets Apocaplayer's current ThirdPerson interface. It uses this mod's cruising view while driving unarmed. Drawing a weapon, aiming, or using binoculars hands the view back to Apocaplayer. Its on-foot camera stays under its control. No Apocaplayer files or code are included or edited. The bridge was checked against an interface double; compatibility with an actual installed copy still needs an in-game test. Other camera mods may compete for the same view.
+The optional runtime bridge targets the installed Apocaplayer 2.3.2 interface. It validates reflected members before applying its own hooks and yields safely with one warning if the interface changes. No Apocaplayer assembly or source is included in the download. Other camera systems and future Apocaplayer interfaces need compatibility testing.
 
 ## Validation and limitations
 
-Built successfully against this installation's Unity, NWH Vehicle Physics, PlayMaker, BepInEx, Harmony, and Apocasetter assemblies. 3,418 total checks passed using real stock prefab anchors with simulated rendering and physics. The existing 2,137 checks include 121 HUD checks and cover vehicle binding, camera switching, roll/pitch isolation, obstacle contraction and recovery, live height changes, pause/focus/input guards, death, teleport resets, and the optional bridge interface. Elevation regressions simulate 12 m/s climbs and drops at 30, 60, and 144 FPS, terrain surfaces missed by collision casts, and sloped road meshes. Recenter regressions check look direction across interruptions, gradual return, and return speed at different frame rates. HUD checks cover live readings, neutral/reverse and forward gear counts, RPM sizing and redline color, native style, weapon-texture isolation, live dial geometry, expanded inventory placement, adjustable size/height, screen bounds, visibility, sprite cleanup, and leaving vehicle physics unchanged. The additional 312 checks cover live pitch limits, missed render callbacks, collision-query budgets and retained buffer growth, late/replaced cameras, live safety guards, changed optional interfaces, persistent bridge failures, replaced inventory, bounds-cache cadence, in-place gear edits, delayed UI fonts and static gauge artwork reuse.
+Built without compiler warnings against this installation's real Unity, NWH, PlayMaker, BepInEx, Harmony and Apocasetter dependencies. 3,419 regression checks pass across 14 stock vehicle anchor fixtures. Another 1,920 checks pass using unchanged Apocaplayer ThirdPerson source and the installed Harmony 2.9.0 library, with Unity, physics, UI and cutaway services simulated. The compiled DLL also passes 47 installed Apocaplayer/native aim interface checks. Three negative controls confirm that cursor-pose, aiming-compass and road-collision tests detect the corresponding broken behavior.
+
+These checks cover camera ownership, cursor projection, armed states, cutaway toggles, cave exclusion, zoom persistence, hidden orbit state, scene refresh, failure cleanup and bounded renderer scans. They do not measure real PhysX geometry, shader compositing or frame times. See Verification.md and Verification/IN-GAME-CHECKLIST.md for remaining in-game tests.
 
 In a 3 Hz vertical-bump simulation, the default smoothing retained about 15% of the bump amplitude at 30, 60, and 144 FPS after the elevation fixes. These are simulation results, not measured in-game road tests. The user reported the driving HUD working in-game and identified the item-icon problem in 0.1.3. The user subsequently confirmed the corrected gauge appearance working. The user confirmed the 0.1.9 compass fix in game; real obstacle clearance, the actual MODS sliders, and driving comfort need further play-testing. This is not an exact reproduction of Mad Max's camera.
 
 Designed for existing saves: the mod changes the rendered driving view, adds its own HUD, and saves its own settings, without writing vehicle tuning or save data.
 
-The install ZIP contains only the plugin and README. Source and verification files are in the separate `ApocaChaseCamera-0.1.9-Developer.zip`; do not extract that archive into the game. Build with `Source/build.ps1 -GameDir <game folder>`.
+The install ZIP contains only the plugin and README. Source and verification files are in the separate `ApocaChaseCamera-0.2.4-Developer.zip`; do not extract that archive into the game. Build with `Source/build.ps1 -GameDir <game folder>`.
 
 
 Archive layout: the repackaged installation ZIP opens directly to the mod's folder. Copy that folder into BepInEx/plugins. For an older ZIP that opens to a BepInEx folder, merge that folder into the game folder instead. Source and verification files are supplied separately.

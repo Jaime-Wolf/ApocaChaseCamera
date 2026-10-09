@@ -1,14 +1,7 @@
-# ApocaChaseCamera 0.1.9 verification
+# Verification - 0.2.4
 
-October 9, 2026. The user requested the native on-foot compass behavior in both vehicle views, following the camera rather than keeping the player facing direction.
+The user confirmed the 0.2.3 crosshair auto-recenter correction in game. 0.2.4 fixes native holder/cache synchronization, cold seated camera discovery and repeated missing-controller HUD searches, preserving cursor-time recenter and the existing compatibility hooks.
 
-Production compilation against installed game dependencies succeeds without warnings. All 3,418 simulated assertions pass across fourteen stock camera fixtures, including thirteen new native-compass adapter assertions. The new layout-preservation reproduction fails against the previous 0.1.8 source and passes with this update.
+Production builds without warnings against installed dependencies. 3,425 regression checks, 1,962 cross-mod simulation checks and 47 installed-interface contracts pass. New scenarios reject the preserved 0.2.3 source for each of the three audit findings. See Verification/0.2.4-REVIEW.md and the accompanying result logs.
 
-New cases verify the on-foot action pipeline is invoked, its multiplier and untouched layout axes remain authoritative, its disabled FSM is not re-enabled, a late-update rotation action is supported, the shared yaw value is restored, repeated callbacks do not accumulate rotation, unfamiliar actions/uninitialized FSMs yield, and late initialization retries. Existing orbit/recenter, first/third-person switch and late-switch, collision, HUD, pause and lifecycle checks remain passing. A fresh clear frame still uses four buffered collision queries, and multiple canvas/render callbacks reuse its pose.
-
-Read-only inspection confirms the native on-foot compass state consists of GetRotation, FloatMultiply and SetRotation. The adapter invokes the installed multiply/rotation actions with a temporary visible-heading input and restores the original variable immediately. It does not re-enable the FSM or modify native transforms. The game implementation is not copied or redistributed; handwritten test doubles exercise the public interface only.
-
-The user confirmed the compass issue fixed in game on October 9, 2026. Automated results remain simulation, compilation and interface checks; this confirmation does not establish compatibility with every third-party camera/UI mod. Test on foot first, then enter a parked vehicle, toggle first/third person while looking at the same landmark, orbit the chase view and wait for recentering, and exit. Equal camera bearings should produce equal compass readings.
-
-Evidence: Verification/0.1.9-check-results.txt. The expected old-version failure remains locally in work/chase-compass-0.1.9/baseline-regression.txt, outside distributed archives. The source and DLL from 0.1.8 are backed up separately. Player ZIP contains only ApocaChaseCamera/ApocaChaseCamera.dll and README.md. The user tested the build and authorized GitHub publication. No installation was performed by the agent.
-
+Run Verification/test.ps1, Verification/test-cross-mod.ps1 -ApocaplayerSource <unchanged separate source directory>, Source/build.ps1 and Verification/verify-production.ps1 -Dll <DLL>. Cross-mod tests also accept -Scenario holder or -Scenario discovery for focused checks. No other-mod code is bundled. Simulated Unity/physics/input services do not replace live tests or actual performance measurements. Use Verification/IN-GAME-CHECKLIST.md. The old ZIP is backed up; 0.2.4 has not been installed or published by the agent.

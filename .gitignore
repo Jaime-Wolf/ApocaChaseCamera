@@ -1,0 +1,12 @@
+Source/build*/
+*.dll
+*.exe
+*.pdb
+*.log
+BepInEx/
+Development/
+Releases/
+Saved-version.json
+SHA256SUMS.txt
+.vs/
+.idea/

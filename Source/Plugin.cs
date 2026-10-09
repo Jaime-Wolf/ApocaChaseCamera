@@ -12,7 +12,7 @@ namespace ApocaChaseCamera
     public sealed class Plugin : BaseUnityPlugin
     {
         public const string GUID = "local.apocalypter.chasecamera";
-        public const string VERSION = "0.1.6";
+        public const string VERSION = "0.1.9";
         internal static ManualLogSource Log;
         internal static ConfigEntry<bool> Enabled, Recenter, HudEnabled;
         internal static ConfigEntry<float> Height, Distance, Side, Pitch, BumpTime,
@@ -45,6 +45,7 @@ namespace ApocaChaseCamera
             SceneManager.sceneLoaded += SceneLoaded;
             Camera.onPreCull += ChaseView.PreCull;
             Camera.onPostRender += ChaseView.PostRender;
+            Canvas.willRenderCanvases += CompassView.Sync;
             EnsureRunner();
             Log.LogInfo("ApocaChaseCamera " + VERSION + " ready. Use the normal third-person driving camera; adjust in MODS.");
         }
@@ -72,6 +73,7 @@ namespace ApocaChaseCamera
             SceneManager.sceneLoaded -= SceneLoaded;
             Camera.onPreCull -= ChaseView.PreCull;
             Camera.onPostRender -= ChaseView.PostRender;
+            Canvas.willRenderCanvases -= CompassView.Sync;
             Enabled.SettingChanged -= Changed;
             ChaseView.Reset(); DrivingHud.Reset(); ApocaplayerBridge.Shutdown();
         }

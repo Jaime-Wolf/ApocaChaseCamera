@@ -7,7 +7,7 @@ $taskManaged = Join-Path $GameDir 'Apocalypter_Data\Managed'
 $taskCore = Join-Path $GameDir 'BepInEx\core'
 $taskCompiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 if (!(Test-Path -LiteralPath $taskCompiler)) { $taskCompiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework\v4.0.30319\csc.exe' }
-$taskReferences = @('mscorlib','System','System.Core','netstandard','UnityEngine','UnityEngine.CoreModule',
+$taskReferences = @('mscorlib','System','System.Core','netstandard','Assembly-CSharp','UnityEngine','UnityEngine.CoreModule',
     'UnityEngine.PhysicsModule','UnityEngine.TerrainModule','UnityEngine.InputLegacyModule',
     'UnityEngine.UIModule','UnityEngine.TextRenderingModule','UnityEngine.UI','PlayMaker','NWH.VehiclePhysics2','NWH.Common') |
     ForEach-Object { Join-Path $taskManaged ($_ + '.dll') }

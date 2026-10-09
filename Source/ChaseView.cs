@@ -17,14 +17,14 @@ namespace ApocaChaseCamera
 
         internal static void Reset()
         {
-            Restore(); CameraQueries.Clear(); ready = false; allowed = false; clearPose = false; selected = null;
+            Restore(); CompassView.Reset(); CameraQueries.Clear(); ready = false; allowed = false; clearPose = false; selected = null;
             orbit = 0f; pitchOrbit = 0f; mouseX = 0f; mouseY = 0f; poseFrame = -1;
             suspended = false; recenterBlend = 0f;
         }
 
         private static void Suspend()
         {
-            Restore(); allowed = false; mouseX = 0f; mouseY = 0f;
+            Restore(); CompassView.Release(); allowed = false; mouseX = 0f; mouseY = 0f;
             if (!suspended) { suspended = true; suspendTime = Time.unscaledTime; }
         }
 
@@ -32,6 +32,7 @@ namespace ApocaChaseCamera
         {
             try
             {
+                CompassView.Release();
                 // Recover a render interrupted before onPostRender. Same-frame
                 // callbacks may repeat, but an old view must not leak forward.
                 if (renderedFrame >= 0 && renderedFrame != Time.frameCount) Restore();
@@ -197,6 +198,23 @@ namespace ApocaChaseCamera
             Apply(camera);
         }
 
+        internal static bool CompassHeading(out float yaw)
+        {
+            yaw = 0f;
+            // A native camera switch can happen after our Update. Do not use
+            // the previous view's pose when the active camera has changed.
+            if (!allowed || selected == null || !selected.isActiveAndEnabled ||
+                selected != CameraBinding.SelectedCamera() || CameraBinding.Car == null) return false;
+            try
+            {
+                BuildPose();
+                if (!clearPose) return false;
+                yaw = heading + orbit;
+                return true;
+            }
+            catch (Exception ex) { Fail(ex); return false; }
+        }
+
         internal static bool Apply(Camera camera)
         {
             if (!allowed || camera != selected || CameraBinding.Car == null) return false;
@@ -216,6 +234,7 @@ namespace ApocaChaseCamera
                 camera.worldToCameraMatrix = view;
                 camera.cullingMatrix = camera.projectionMatrix * view;
                 if (!ApocaplayerBridge.Publish(camera, position, rotation)) { Restore(); return false; }
+                CompassView.Apply(heading + orbit);
                 return true;
             }
             catch (Exception ex) { Fail(ex); return false; }

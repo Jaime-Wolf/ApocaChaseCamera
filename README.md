@@ -127,7 +127,7 @@ In a 3 Hz vertical-bump simulation, the default smoothing retained about 15% of 
 
 Designed for existing saves: the mod changes the rendered driving view, adds its own HUD, and saves its own settings, without writing vehicle tuning or save data.
 
-The install ZIP contains only the plugin and README. Source and verification files are in the separate `ApocaChaseCamera-0.2.4-Developer.zip`; do not extract that archive into the game. Build with `Source/build.ps1 -GameDir <game folder>`.
+The install ZIP contains only the plugin, README and MODS menu icon. Source and verification files are in the separate `ApocaChaseCamera-0.2.4-Developer.zip`; do not extract that archive into the game. Build with `Source/build.ps1 -GameDir <game folder>`.
 
 
 Archive layout: the repackaged installation ZIP opens directly to the mod's folder. Copy that folder into BepInEx/plugins. For an older ZIP that opens to a BepInEx folder, merge that folder into the game folder instead. Source and verification files are supplied separately.
@@ -137,4 +137,10 @@ Archive layout: the repackaged installation ZIP opens directly to the mod's fold
 Copyright (c) 2026 Jaime-Wolf. You may install and use the official mod, inspect its source, and build/test it locally for evaluation and compatibility development. Separate compatibility patches are allowed when they depend on the original mod and do not bundle its DLL or source.
 
 Prior permission from Jaime-Wolf is required to copy or adapt this source into another project, bundle or redistribute the mod, distribute a modified version, or reupload it. All other rights are reserved. These permissions apply to original ApocaChaseCamera code and documentation; game and third-party components retain their owners' terms. Full permissions are in LICENSE.md in the source repository. [Repository and releases](https://github.com/Jaime-Wolf/ApocaChaseCamera).
+
+
+## MODS menu icon
+
+The installation ZIP now includes `icon.png` beside the DLL for the in-game MODS menu. Keep it in the mod folder. This packaging refresh leaves the gameplay code and version unchanged.
+
 

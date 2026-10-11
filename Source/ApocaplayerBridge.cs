@@ -425,6 +425,20 @@ namespace ApocaChaseCamera
             cruisePoseFrame = Time.frameCount; hasCruisePose = true;
         }
 
+        internal static void ShiftOrigin(Transform car, Vector3 delta)
+        {
+            if (hasCruisePose && cruiseCar == car) lastCruisePosition += delta;
+            if (hasNativePose && nativeCar == car) lastNativePosition += delta;
+            if (!compatible || car != CameraBinding.Car) return;
+            try
+            {
+                // A same-frame cache can otherwise project the crosshair or
+                // hand a camera back using pre-shift world coordinates.
+                cacheFrame(-1); cacheIsCruise = false; hasView(false);
+            }
+            catch (Exception ex) { FailClosed(ex); }
+        }
+
         internal static void Angles(Quaternion rotation, out float yaw, out float pitch)
         {
             Vector3 forward = rotation * new Vector3(0f, 0f, 1f);

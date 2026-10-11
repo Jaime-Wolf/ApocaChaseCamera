@@ -52,6 +52,23 @@ namespace ApocaChaseCamera
         internal static void AcceptHandoff(Vector3 position, Quaternion rotation)
         { handoffPosition = position; handoffRotation = rotation; handoff = true; poseFrame = -1; }
 
+        internal static void ShiftOrigin(Transform car, Vector3 delta)
+        {
+            if (car == null || car != CameraBinding.Car) return;
+            Restore();
+            if (ready)
+            {
+                previousRaw += delta;
+                position += delta;
+                vertical += delta.y;
+            }
+            if (handoff) handoffPosition += delta;
+            // Recheck clearance at the new coordinates even if the cursor or
+            // compass built a pose earlier in this frame. Input remains consumed
+            // once, and angles/zoom/recenter timers keep their existing values.
+            poseFrame = -1;
+        }
+
         internal static void Reset()
         {
             Restore(); CompassView.Reset(); CameraQueries.Clear(); ready = false; allowed = false; clearPose = false; selected = null;

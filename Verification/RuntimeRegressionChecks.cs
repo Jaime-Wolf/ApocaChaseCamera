@@ -59,7 +59,7 @@ namespace ApocaChaseCamera
             float pitch = Plugin.Pitch.Value, distance = Plugin.Distance.Value, side = Plugin.Side.Value;
             try
             {
-                LivePitch(); InterruptedRender(); CollisionWork(); GrowingQueries();
+                LivePitch(); InterruptedRender(); CollisionWork(); GrowingQueries(); OriginTranslations();
                 Console.WriteLine("Camera runtime regressions: live pitch bounds, interrupted renders, collision budgets and retained buffers passed.");
                 return checks;
             }
@@ -86,6 +86,58 @@ namespace ApocaChaseCamera
             Check(Math.Abs(Field<Quaternion>("rotation").euler.x + 35f) < 0.001f, "mouse orbit reaches lower bound");
             Plugin.Pitch.Value = -10f; Frame(1f / 60f); Render(); Finish();
             Check(Math.Abs(Field<Quaternion>("rotation").euler.x + 35f) < 0.001f, "base-pitch edit without input keeps lower bound");
+        }
+
+        private static void Shift(Vector3 delta)
+        {
+            // Exercise the actual prefix/postfix callbacks around a handwritten
+            // world translation; real-Harmony wiring is checked separately.
+            object[] snapshot = new object[] { null };
+            typeof(OriginShift).GetMethod("Before", BindingFlags.NonPublic | BindingFlags.Static).Invoke(null, snapshot);
+            OriginShiftFixture.Move(delta);
+            typeof(OriginShift).GetMethod("After", BindingFlags.NonPublic | BindingFlags.Static).Invoke(null, snapshot);
+        }
+
+        private static void OriginTranslations()
+        {
+            ApocaplayerBridge.Shutdown();
+            foreach (int hz in new int[] { 30, 60, 144 })
+            foreach (Vector3 delta in new Vector3[] { new Vector3(1000,0,0), new Vector3(-1000,0,0),
+                new Vector3(0,0,1000), new Vector3(0,0,-1000), new Vector3(1000,-50,-1000) })
+            {
+                Setup("Origin" + hz); Frame(1f/hz); Render(); Finish();
+                car.transform.position += new Vector3(0,.3f,0);
+                Input.X=10f; Input.Y=-2f; Frame(1f/hz);
+                Vector3 before; Quaternion beforeRotation;
+                Check(ChaseView.TryPose(camera,out before,out beforeRotation), "early cursor pose exists");
+                float oldOrbit=Field<float>("orbit"), oldVertical=Field<float>("vertical"), oldDistance=Field<float>("distance");
+                float oldLastMove=Field<float>("lastMove");
+                // No new frame: this is the ordering omitted by the old test.
+                Shift(delta);
+                Check(Field<int>("poseFrame")==-1, "same-frame pose invalidated after native shift");
+                Check(Math.Abs(Field<float>("vertical")-oldVertical-delta.y)<.001f, "vertical history translates rather than snapping");
+                Vector3 after; Quaternion afterRotation;
+                Check(ChaseView.TryPose(camera,out after,out afterRotation), "same-frame shifted pose exists");
+                Check(Vector3.Distance(after,before+delta)<.002f, "all axes follow native translation in the same frame");
+                Check(Math.Abs(Field<float>("orbit")-oldOrbit)<.001f, "mouse input is not consumed twice");
+                Check(Math.Abs(Field<float>("lastMove")-oldLastMove)<.001f, "recenter delay is preserved");
+                Check(Math.Abs(Field<float>("distance")-oldDistance)<.001f, "zoom and collision recovery distance are preserved");
+                Render(); int resets=camera.ViewResets;
+                Shift(delta); // Also recover a matrix published before a shift.
+                Check(camera.ViewResets==resets+1 && Field<int>("renderedFrame")==-1, "pre-shift custom render matrices released");
+                Check(ChaseView.Apply(camera), "same camera can publish its translated matrix again");
+                Check(Vector3.Distance(Field<Vector3>("position"),before+delta+delta)<.003f, "two shifts do not reuse a stale cached pose");
+                Finish(); Input.X=Input.Y=0;
+                Frame(1f/hz); Render();
+                Check(Vector3.Distance(Field<Vector3>("position"),before+delta+delta)<.1f, "next-frame continuity after shift"); Finish();
+            }
+            Setup("UnchangedOrigin"); Frame(.016f); Render(); Finish();
+            int pose=Field<int>("poseFrame"), queries=Physics.BufferedQueries;
+            Shift(new Vector3()); Vector3 p; Quaternion r; ChaseView.TryPose(camera,out p,out r);
+            Check(Field<int>("poseFrame")==pose && Physics.BufferedQueries==queries, "ordinary native LateUpdate preserves the cache and query budget");
+            ChaseView.Reset(); CameraBinding.Reset(); Shift(new Vector3(1000,0,0));
+            Check(!Field<bool>("ready"), "on-foot or unresolved camera is not initialized by a shift");
+            Console.WriteLine("Origin translation regressions: same-frame poses, all axes, repeated shifts and render recovery at 30/60/144 FPS passed.");
         }
 
         private static void InterruptedRender()

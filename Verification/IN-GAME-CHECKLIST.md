@@ -1,4 +1,4 @@
-# ApocaChaseCamera 0.2.4 compatibility test
+# ApocaChaseCamera 0.2.5 compatibility test
 
 Build against your installed game references using `Source/build.ps1 -GameDir 'C:\path\to\Apocalypter'`.
 Replace the single installed ChaseCamera DLL while the game is closed. Keep Apocaplayer unchanged.
@@ -22,3 +22,11 @@ Record installed versions, vehicle, settings, reproduction steps, and the releva
 - Load a save while seated, then switch views and exit/re-enter. Confirm ChaseCamera takes over without needing to leave the vehicle first. Its native camera must still work with Apocaplayer disabled.
 - If a modded vehicle lacks NWH VehicleController, its HUD should hide without warning spam. Switching to a supported vehicle should restore the HUD immediately.
 - The 0.2.3 ZIP is preserved for rollback. This build has not been installed or published by the agent. Actual Unity frame time, visuals, interactions and input transitions require this live check.
+
+## Focused 0.2.5 world-shift checks
+
+- Check the startup log for "World-origin camera synchronization ready." Any unavailable-hook warning should be included in a bug report.
+- Drive across several 1 km boundaries with Apocaplayer disabled and with it enabled. Try several travel directions, orbiting and passive auto-recenter. Watch for a void frame, a delayed camera or an unwanted distance/heading reset.
+- Repeat a crossing with a weapon drawn, then stow it; switch first/third person near a boundary. The transition, crosshair and compass must stay aligned.
+- Try a boundary near terrain/obstacles and confirm camera collision recovery still works. Compare the BepInEx log for errors.
+- 0.2.4 remains backed up. On October 11, 2026, the user confirmed the 0.2.5 world-shift fix works in game and approved publication. This checklist remains for further regression coverage.

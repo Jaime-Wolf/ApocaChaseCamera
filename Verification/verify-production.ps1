@@ -1,7 +1,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$Dll,
     [string]$GameDir = 'D:\Steam\steamapps\common\Apocalypter',
-    [string]$ExpectedVersion = '0.2.4'
+    [string]$ExpectedVersion = '0.2.5'
 )
 $ErrorActionPreference = 'Stop'
 Add-Type -Path (Join-Path $GameDir 'BepInEx\core\Mono.Cecil.dll')
@@ -51,6 +51,23 @@ try {
         $taskCount++
     }
     $taskPlugin=$taskMod.MainModule.Types | Where-Object FullName -eq 'ApocaChaseCamera.Plugin'
+    foreach($taskOriginName in @('FloatingOrigin','FloatingOriginAdvanced','FloatingOriginNew')) {
+        $taskOriginType=$taskGame.MainModule.Types | Where-Object FullName -eq $taskOriginName
+        $taskOriginMethods=@($taskOriginType.Methods | Where-Object {$_.Name -eq 'LateUpdate' -and !$_.IsStatic -and $_.ReturnType.FullName -eq 'System.Void' -and $_.Parameters.Count -eq 0})
+        if($taskOriginMethods.Count -ne 1) {throw ('Native origin target changed: '+$taskOriginName)}
+        $taskCount++
+    }
+    $taskOrigin=$taskMod.MainModule.Types | Where-Object FullName -eq 'ApocaChaseCamera.OriginShift'
+    $taskAfter=$taskOrigin.Methods | Where-Object Name -eq 'After'
+    foreach($taskCall in @('ApocaChaseCamera.ChaseView::ShiftOrigin','ApocaChaseCamera.ApocaplayerBridge::ShiftOrigin')) {
+        if(!($taskAfter.Body.Instructions | Where-Object {([string]$_.Operand).Contains($taskCall)})) {throw ('Origin event does not notify '+$taskCall)}
+    }
+    $taskOriginWrites=@($taskOrigin.Methods | Where-Object HasBody | ForEach-Object {$_.Body.Instructions} | Where-Object {([string]$_.Operand) -match 'UnityEngine.Transform::set_position|UnityEngine.Rigidbody::set_'})
+    if($taskOriginWrites.Count) {throw 'Origin observer must not move transforms or alter physics.'}
+    $taskAwake=$taskPlugin.Methods | Where-Object Name -eq 'Awake'
+    $taskQuit=$taskPlugin.Methods | Where-Object Name -eq 'OnApplicationQuit'
+    if(!($taskAwake.Body.Instructions | Where-Object {([string]$_.Operand).Contains('OriginShift::Initialize')}) -or
+       !($taskQuit.Body.Instructions | Where-Object {([string]$_.Operand).Contains('OriginShift::Shutdown')})) {throw 'Origin hooks have no production lifecycle.'}
     $taskAttribute=$taskPlugin.CustomAttributes | Where-Object {$_.AttributeType.FullName -eq 'BepInEx.BepInPlugin'}
     if($taskAttribute.ConstructorArguments[0].Value -ne 'local.apocalypter.chasecamera' -or $taskAttribute.ConstructorArguments[2].Value -ne $ExpectedVersion) {throw 'Wrong production plugin GUID or version.'}
     if($taskMod.MainModule.AssemblyReferences | Where-Object {$_.Name -match '^ap232$|^Apocaplayer$'}) {throw 'Apocaplayer must remain optional, without an assembly reference.'}

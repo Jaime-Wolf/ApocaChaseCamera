@@ -25,7 +25,7 @@ try {
         ('/reference:' + (Join-Path $taskWork 'MonoMod.Utils.dll')),
         ('/reference:' + (Join-Path $taskWork 'Mono.Cecil.dll')),
         '/reference:System.Numerics.dll','/reference:System.Numerics.Vectors.dll')
-    $taskArgs += @('Stubs.cs','RealPlayerStubs.cs','RealPlayerChecks.cs') | ForEach-Object { Join-Path $PSScriptRoot $_ }
+    $taskArgs += @('Stubs.cs','OriginShiftStubs.cs','RealPlayerStubs.cs','RealPlayerChecks.cs') | ForEach-Object { Join-Path $PSScriptRoot $_ }
     $taskArgs += Get-ChildItem -LiteralPath $taskSource -Filter '*.cs' -File | Where-Object Name -ne 'Plugin.cs' | ForEach-Object FullName
     $taskArgs += $taskExternal
     & $taskCompiler @taskArgs

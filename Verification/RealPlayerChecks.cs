@@ -384,6 +384,51 @@ namespace ApocaChaseCamera
             Check(CameraBinding.FirstCamera==null,"unrelated scene camera with matching name is rejected");
         }
         private static void ForeignPostfix(){}
+
+        private static void OriginTranslations()
+        {
+            OriginShift.Initialize();
+            try
+            {
+                foreach (Type type in new Type[] {typeof(FloatingOrigin),typeof(FloatingOriginAdvanced),typeof(FloatingOriginNew)})
+                {
+                    Setup(); OriginShiftFixture.Move(new Vector3(1100,12,2300)); Frame();
+                    Input.X=15; Frame(); Input.X=0;
+                    Vector3 before; Quaternion rotation;
+                    Check(ChaseView.TryPose(eye,out before,out rotation), "cruising pose before " + type.Name);
+                    compute.Invoke(null,new object[]{eye});
+                    Check(Field<int>("_viewFrame")==Time.frameCount, "real cursor cache populated before native LateUpdate");
+                    Vector3 delta=new Vector3(-1000,0,-2000);
+                    object origin=Activator.CreateInstance(type);
+                    type.GetField("Delta").SetValue(origin,delta);
+                    type.GetMethod("LateUpdate").Invoke(origin,null); // Real Harmony dispatch.
+                    Check(Field<int>("_viewFrame")==-1 && !Player.HasView, "real origin postfix invalidates pre-shift cursor/render caches");
+                    Player.LateCrosshair(); CompassView.Sync(); Camera.Render(eye);
+                    Vector3 after; Quaternion afterRotation;
+                    Check(ChaseView.TryPose(eye,out after,out afterRotation), "shifted cruising pose available in same frame");
+                    Near(Vector3.Distance(after,before+delta),0,"rendered camera follows origin shift exactly");
+                    Near(Vector3.Distance(Field<Vector3>("_vPos"),after),0,"actual cursor cache follows shifted camera");
+                    Vector2 projected=Project(eye.transform.position+eye.transform.forward*1000,after,afterRotation,eye.fieldOfView);
+                    Near(Player.CrosshairScreen.x,projected.x,"crosshair horizontal projection remains aligned after shift");
+                    Near(Player.CrosshairScreen.y,projected.y,"crosshair vertical projection remains aligned after shift");
+                    float yaw,pitch; ApocaplayerBridge.Angles(afterRotation,out yaw,out pitch);
+                    Near(arrow.rotation.euler.z,-yaw,"compass preserves heading across translation");
+                    ChaseView.PostRender(eye); Player.EndOfFrame();
+                    // Store an armed/native handoff, shift again, then stow.
+                    PlayerGame.Weapon="Rifle"; Frame();
+                    Vector3 nativeBefore=(Vector3)typeof(ApocaplayerBridge).GetField("lastNativePosition",BindingFlags.NonPublic|BindingFlags.Static).GetValue(null);
+                    type.GetMethod("LateUpdate").Invoke(origin,null);
+                    Vector3 nativeAfter=(Vector3)typeof(ApocaplayerBridge).GetField("lastNativePosition",BindingFlags.NonPublic|BindingFlags.Static).GetValue(null);
+                    Near(Vector3.Distance(nativeAfter,nativeBefore+delta),0,"armed transition history translates with the car");
+                    PlayerGame.Weapon=""; Frame(false);
+                    Check(ApocaplayerBridge.Driving(eye),"stowing after shift restores compatibility ownership");
+                    Check(ChaseView.TryPose(eye,out after,out afterRotation) && Vector3.Distance(after,car.transform.position)<20,
+                        "native-to-chase transition cannot jump into old coordinates");
+                }
+            }
+            finally {OriginShift.Shutdown();}
+        }
+
         public static void Main(string[] args)
         {
             string scenario=args.Length==0?"":args[0];
@@ -393,7 +438,7 @@ namespace ApocaChaseCamera
             {
                 if(scenario!="")throw new ArgumentException("Unknown scenario: "+scenario);
                 CursorAndOwnership();PassiveRecenterCursor();RecenterOwnershipGuards();DormantAndLateNativeLook();
-                HolderTargetRecenter();ColdSeatedDiscovery();CutawayAndCollision();ZoomAndGuards();LateSwitchesAndCleanup();
+                HolderTargetRecenter();ColdSeatedDiscovery();CutawayAndCollision();ZoomAndGuards();LateSwitchesAndCleanup();OriginTranslations();
             }
             Player.Off();ApocaplayerBridge.Shutdown();
             Check(HarmonyLib.Harmony.GetAllPatchedMethods()!=null,"real Harmony lifecycle completed");

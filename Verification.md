@@ -1,7 +1,18 @@
-# Verification - 0.2.4
+# ApocaChaseCamera 0.2.5 verification
 
-The user confirmed the 0.2.3 crosshair auto-recenter correction in game. 0.2.4 fixes native holder/cache synchronization, cold seated camera discovery and repeated missing-controller HUD searches, preserving cursor-time recenter and the existing compatibility hooks.
+Built on 2026-10-11. The user confirmed that the world-shift camera fix works in game and approved publication. The full previous 0.2.4 project and archives remain backed up locally.
 
-Production builds without warnings against installed dependencies. 3,425 regression checks, 1,962 cross-mod simulation checks and 47 installed-interface contracts pass. New scenarios reject the preserved 0.2.3 source for each of the three audit findings. See Verification/0.2.4-REVIEW.md and the accompanying result logs.
+- Production build: passed against installed game, BepInEx and Apocasetter references, without compiler warnings.
+- Standalone: 3,607 checks, including 182 new origin checks. Simulates same-frame pose consumption before a world translation, all axes, two successive shifts, interrupted render matrices and next-frame continuity at 30/60/144 FPS. Ordinary origin callbacks retain the existing pose/query budget.
+- Cross-mod: 2,001 checks using unchanged separate Apocaplayer ThirdPerson.cs and the installed real Harmony library. The 39 added checks execute all three observer hooks through real Harmony and verify cursor-cache invalidation, rendering, crosshair projection, compass and armed-to-cruising handoffs. Supporting Unity/input/physics services remain simulated. External source hash remained unchanged.
+- Installed interfaces: 50 native/Apocaplayer contracts passed, including all three native origin LateUpdate methods. Production checks confirm observer startup/teardown, both camera-history notifications and absence of transform or rigidbody writes in the observer.
+- Apocaplayer remains optional. Production assembly contains no Apocaplayer implementation or hard assembly reference.
+- Player ZIP contains a root ApocaChaseCamera folder with DLL/icon/README only. Source and verification are separate, without game or third-party dependency DLLs.
 
-Run Verification/test.ps1, Verification/test-cross-mod.ps1 -ApocaplayerSource <unchanged separate source directory>, Source/build.ps1 and Verification/verify-production.ps1 -Dll <DLL>. Cross-mod tests also accept -Scenario holder or -Scenario discovery for focused checks. No other-mod code is bundled. Simulated Unity/physics/input services do not replace live tests or actual performance measurements. Use Verification/IN-GAME-CHECKLIST.md. The old ZIP is backed up; 0.2.4 has not been installed or published by the agent.
+Run Verification/test.ps1, Verification/test-cross-mod.ps1 -ApocaplayerSource <separate unchanged source directory>, Source/build.ps1, and Verification/verify-production.ps1 -Dll <built DLL>. No other-mod source is redistributed.
+
+## Additional in-game regression checks
+
+Drive across several 1 km world shifts in native third person, then with Apocaplayer enabled. Test while orbiting, while auto-recentering, near obstacles and immediately before/after drawing or stowing a weapon. Camera position, crosshair and compass should remain aligned without a void frame or jump. Check first-person switching and leaving/re-entering the vehicle. Startup log should include "World-origin camera synchronization ready." See Verification/IN-GAME-CHECKLIST.md for existing compatibility checks.
+
+The user confirmed successful gameplay testing of the reported world-origin issue. The agent did not perform live gameplay or a runtime FPS benchmark. The full combinations above remain useful regression checks; the user confirmation does not establish coverage of every combination.

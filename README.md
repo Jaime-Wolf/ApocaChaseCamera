@@ -1,4 +1,4 @@
-# ApocaChaseCamera 0.2.4 — steadier driving camera and instrument HUD
+# ApocaChaseCamera 0.2.5 — steadier driving camera and instrument HUD
 
 A steadier third-person driving camera for Apocalypter, inspired by the chase-camera feel of Mad Max (2015).
 
@@ -11,6 +11,14 @@ Version 0.1.2 adds a compact driving display above the inventory slots: speed in
 Version 0.1.3 gives the HUD a rusted, bolted metal backing and separate dark gauge housings with inventory-style rims. It reuses the game's loaded inventory artwork, with sliced borders to preserve the rivets when resized. The existing placement, readings, font, RPM warning, size and height controls stay the same. No extracted game textures are included in the download.
 
 Version 0.1.4 fixes weapon icons appearing in the HUD: item-slot textures change with the equipped weapon, so they are no longer used. Only the static rusty inventory plate is reused. Speed and RPM now have brass semicircular instrument faces, tick marks and live needles, with digital readings beneath them. The speed needle spans 0–240 km/h; the number still shows actual speed above that range. The RPM needle uses the current engine's rev limit, with a red zone and warning near redline. Gear has its own circular instrument rim. The default display is slightly taller to fit these faces and remains above the inventory with the same size and height controls.
+
+## Changes in 0.2.5
+
+Fixes a stale camera position when the game shifts world coordinates during a drive. The game can move the world in LateUpdate after the cursor or compass has already calculated that frame's view. ChaseCam now observes the completed native shift, translates its position/height history and pending handoffs, and rebuilds the pose at the new coordinates before rendering. Orbit, pitch, zoom, collision recovery and recenter timing are preserved. An interrupted pre-shift render matrix is released.
+
+The optional Apocaplayer bridge also translates its transition history and invalidates the old cursor/view cache. No game, Apocaplayer or Apocasetter files are modified, and Apocaplayer remains optional. The observer reads the native shift; it does not move objects or change vehicle physics.
+
+Production compilation passes without warnings. 3,607 standalone checks, 2,001 cross-mod checks with unchanged Apocaplayer source and real Harmony, and 50 installed-interface contracts pass. Origin tests cover shifts after an early same-frame pose, repeated shifts, all coordinate axes and 30/60/144 FPS. Unity/physics services remain simulated. On October 11, 2026, the user confirmed that the world-shift fix works in game and approved this release. The prior 0.2.4 build is preserved. The checklist remains available for additional compatibility and regression testing.
 
 ## Changes in 0.2.4
 
@@ -127,7 +135,7 @@ In a 3 Hz vertical-bump simulation, the default smoothing retained about 15% of 
 
 Designed for existing saves: the mod changes the rendered driving view, adds its own HUD, and saves its own settings, without writing vehicle tuning or save data.
 
-The install ZIP contains only the plugin, README and MODS menu icon. Source and verification files are in the separate `ApocaChaseCamera-0.2.4-Developer.zip`; do not extract that archive into the game. Build with `Source/build.ps1 -GameDir <game folder>`.
+The install ZIP contains only the plugin, README and MODS menu icon. Source and verification files are in the separate `ApocaChaseCamera-0.2.5-Developer.zip`; do not extract that archive into the game. Build with `Source/build.ps1 -GameDir <game folder>`.
 
 
 Archive layout: the repackaged installation ZIP opens directly to the mod's folder. Copy that folder into BepInEx/plugins. For an older ZIP that opens to a BepInEx folder, merge that folder into the game folder instead. Source and verification files are supplied separately.
@@ -141,6 +149,4 @@ Prior permission from Jaime-Wolf is required to copy or adapt this source into a
 
 ## MODS menu icon
 
-The installation ZIP now includes `icon.png` beside the DLL for the in-game MODS menu. Keep it in the mod folder. This packaging refresh leaves the gameplay code and version unchanged.
-
-
+The installation ZIP includes `icon.png` beside the DLL for the in-game MODS menu. Keep it in the mod folder. The icon remains included in 0.2.5 alongside the world-origin camera fix.

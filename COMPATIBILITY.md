@@ -58,3 +58,13 @@ The full-folder review found that the native Look FSM targets PlayerCameraHolder
 When the eye has moved to the vehicle seat before binding begins, discovery checks that seat and then an exact-name fallback restricted to the player/current seat hierarchy. Searches remain rate limited to half-second retries. Native/on-foot holder discovery remains supported. The HUD similarly negatively caches a missing VehicleController for half a second, but changing vehicles bypasses the old delay and a delayed controller can recover.
 
 Tests use unchanged separately supplied Apocaplayer ThirdPerson.cs and real installed Harmony/Cecil, with handwritten Unity/physics/input services. They cover a scene-root and parented holder, attached and seat-reparented eyes, tilted parents, resumed input, player/steering exclusions, armed/disabled-recenter guards, cold/replaced seated eyes, rejected unrelated cameras, stable lookup reuse and missing/late/replaced HUD controllers. Preserved 0.2.3 fails the holder, seated discovery and HUD retry scenarios independently. No actual frame-time profiling has been performed. No third-party source or binaries are shipped in either archive.
+
+## Native world-origin events (0.2.5)
+
+OriginShift observes the zero-argument LateUpdate methods on FloatingOrigin, FloatingOriginAdvanced and FloatingOriginNew. A prefix records the currently bound vehicle transform and position; the postfix reads its actual translation. No change is applied if that vehicle was not moved or binding changed. There are no added scene searches or physics queries on ordinary event frames.
+
+The translation updates ChaseView's cached position, previous anchor, filtered height and pending handoff. It invalidates poseFrame so a view calculated earlier that frame cannot be reused at old coordinates. consumedInputFrame still prevents duplicated mouse input. Any currently published ChaseCam matrices are reset before reuse. Angles, boom distance and recenter clocks are retained.
+
+The optional bridge moves its remembered native/cruising handoffs, invalidates Apocaplayer's view-frame cache and clears its published-view flag until recomputed. Source files of other mods and native game files are unchanged. Origin hooks use a separate Harmony owner and are removed on application exit. Production verification checks native method availability and rejects transform/rigidbody writes inside the observer.
+
+The game's threshold and world-shift implementation are left intact. Origin-event doubles in the verification suite are handwritten translation fixtures; no native game implementation is bundled. Actual Unity render ordering, PhysX synchronization and other world-streaming mods still need an in-game drive test.
